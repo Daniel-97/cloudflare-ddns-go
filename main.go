@@ -35,7 +35,30 @@ func main() {
 func cloudflare_overwrite_dns(config Config, ip string) {
 
 	const url = "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$DNS_RECORD_ID"
-	req, err := http.NewRequest("PUT", url, bytes.NewBuffer(jsonBytes))
+	json := ""
+	req, err := http.NewRequest("PUT", url, bytes.NewBuffer(json))
+
+	if err != nil {
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Auth-Email", config.CLOUDFLARE_EMAIL)
+	req.Header.Set("X-Auth-Key", config.CLOUDFLARE_API_KEY)
+
+	client := &http.Client{}
+	res, err := client.Do(req)
+
+	if err != nil {
+
+	}
+
+	if res.StatusCode == http.StatusOK {
+
+	} else {
+
+	}
+
 }
 
 func load_config() (*Config, error) {
