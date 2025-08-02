@@ -17,13 +17,48 @@ type Config struct {
 	CLOUDFLARE_RECORD_NAME string
 }
 
-type CloudflareRequest struct {
+type CloudflareAPIRequest struct {
 	Name    string `json:"name"`
 	TTL     int    `json:"ttl"`
 	Type    string `json:"type"`
 	Comment string `json:"comment"`
 	Content string `json:"content"`
 	Proxied bool   `json:"proxied"`
+}
+
+type CloudflareAPIResponse struct {
+	Errors   []APIMessage `json:"errors"`
+	Messages []APIMessage `json:"messages"`
+	Success  bool         `json:"success"`
+	Result   Result       `json:"result"`
+}
+
+type APIMessage struct {
+	Code             int    `json:"code"`
+	Message          string `json:"message"`
+	DocumentationURL string `json:"documentation_url"`
+	Source           Source `json:"source"`
+}
+
+type Source struct {
+	Pointer string `json:"pointer"`
+}
+
+type Result struct {
+	Name     string   `json:"name"`
+	TTL      int      `json:"ttl"`
+	Type     string   `json:"type"`
+	Comment  string   `json:"comment"`
+	Content  string   `json:"content"`
+	Proxied  bool     `json:"proxied"`
+	Settings Settings `json:"settings"`
+	Tags     []string `json:"tags"`
+	ID       string   `json:"id"`
+}
+
+type Settings struct {
+	IPv4Only bool `json:"ipv4_only"`
+	IPv6Only bool `json:"ipv6_only"`
 }
 
 func main() {
@@ -41,7 +76,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(record_id)
+
+	log.Printf("DNS record succesfully created with id: %s", record_id)
 }
 
 func get_dns_record_type(address string) string {
@@ -52,11 +88,32 @@ func get_dns_record_type(address string) string {
 	}
 }
 
+func parse_cloudflare_response(response *http.Response) (json_body CloudflareAPIResponse, err error) {
+
+	body, err := io.ReadAll(response.Body)
+
+	if err != nil {
+		return CloudflareAPIResponse{}, err
+	}
+
+	var apiResp CloudflareAPIResponse
+	err = json.Unmarshal(body, &apiResp)
+
+	if err != nil {
+		return CloudflareAPIResponse{}, err
+	}
+
+	return apiResp, nil
+}
+
+func cloudflare_get_dns_record(config Config, record_name: str) {
+	
+}
 func cloudflare_create_dns_record(config Config, address string) (record_id string, err error) {
 	url := fmt.Sprintf("https://api.cloudflare.com/client/v4/zones/%s/dns_records", config.CLOUDFLARE_ZONE_ID)
 	log.Println(url)
 
-	req_body := CloudflareRequest{
+	req_body := CloudflareAPIRequest{
 		Name:    config.CLOUDFLARE_RECORD_NAME,
 		TTL:     3600,
 		Type:    get_dns_record_type(address),
@@ -86,19 +143,16 @@ func cloudflare_create_dns_record(config Config, address string) (record_id stri
 		return "", err
 	}
 
-	body, err := io.ReadAll(res.Body)
-
+	cloudflare_response, err := parse_cloudflare_response(res)
 	if err != nil {
 		return "", err
 	}
 
-	body_string := string(body)
-
 	if res.StatusCode == http.StatusOK {
-		return body_string, nil
+		return cloudflare_response.Result.ID, nil
 
 	} else {
-		return "", fmt.Errorf("HTTP error %d: %s", res.StatusCode, body_string)
+		return "", fmt.Errorf("HTTP error %d: %s", res.StatusCode, cloudflare_response.Errors[0].Message)
 	}
 
 }
