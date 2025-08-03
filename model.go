@@ -1,9 +1,11 @@
 package main
 
 type Config struct {
-	CLOUDFLARE_API_TOKEN   string
-	CLOUDFLARE_ZONE_ID     string
-	CLOUDFLARE_RECORD_NAME string
+	CLOUDFLARE_API_TOKEN    string
+	CLOUDFLARE_ZONE_ID      string
+	CLOUDFLARE_RECORD_NAME  string
+	CLOUDFLARE_RECORD_TTL   int
+	CLOUDFLARE_RECORD_PROXY bool
 }
 
 type CloudflareAPIRequest struct {
