@@ -11,56 +11,6 @@ import (
 	"strings"
 )
 
-type Config struct {
-	CLOUDFLARE_API_TOKEN   string
-	CLOUDFLARE_ZONE_ID     string
-	CLOUDFLARE_RECORD_NAME string
-}
-
-type CloudflareAPIRequest struct {
-	Name    string `json:"name"`
-	TTL     int    `json:"ttl"`
-	Type    string `json:"type"`
-	Comment string `json:"comment"`
-	Content string `json:"content"`
-	Proxied bool   `json:"proxied"`
-}
-
-type CloudflareAPIResponse struct {
-	Errors   []APIMessage `json:"errors"`
-	Messages []APIMessage `json:"messages"`
-	Success  bool         `json:"success"`
-	Result   Result       `json:"result"`
-}
-
-type APIMessage struct {
-	Code             int    `json:"code"`
-	Message          string `json:"message"`
-	DocumentationURL string `json:"documentation_url"`
-	Source           Source `json:"source"`
-}
-
-type Source struct {
-	Pointer string `json:"pointer"`
-}
-
-type Result struct {
-	Name     string   `json:"name"`
-	TTL      int      `json:"ttl"`
-	Type     string   `json:"type"`
-	Comment  string   `json:"comment"`
-	Content  string   `json:"content"`
-	Proxied  bool     `json:"proxied"`
-	Settings Settings `json:"settings"`
-	Tags     []string `json:"tags"`
-	ID       string   `json:"id"`
-}
-
-type Settings struct {
-	IPv4Only bool `json:"ipv4_only"`
-	IPv6Only bool `json:"ipv6_only"`
-}
-
 func main() {
 
 	config := load_config()
@@ -72,12 +22,22 @@ func main() {
 
 	log.Println("Your ip address is", ip)
 
-	record_id, err := cloudflare_create_dns_record(*config, ip)
+	record, err := cloudflare_get_dns_record(*config, config.CLOUDFLARE_RECORD_NAME)
+
 	if err != nil {
 		log.Fatal(err)
-	}
+	} else if record != nil {
+		// Record already present, overwrite it
+		log.Printf("Record %s found in zone %s", config.CLOUDFLARE_RECORD_NAME, config.CLOUDFLARE_ZONE_ID)
+	} else {
+		// Record do not exists, create a new one
+		record_id, err := cloudflare_create_dns_record(*config, ip)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	log.Printf("DNS record succesfully created with id: %s", record_id)
+		log.Printf("DNS record succesfully created with id: %s", record_id)
+	}
 }
 
 func get_dns_record_type(address string) string {
@@ -88,32 +48,70 @@ func get_dns_record_type(address string) string {
 	}
 }
 
-func parse_cloudflare_response(response *http.Response) (json_body CloudflareAPIResponse, err error) {
+func parse_cloudflare_response[T any](response *http.Response) (json_body T, err error) {
 
+	var result T
 	body, err := io.ReadAll(response.Body)
 
 	if err != nil {
-		return CloudflareAPIResponse{}, err
+		return result, err
 	}
+	defer response.Body.Close()
 
-	var apiResp CloudflareAPIResponse
-	err = json.Unmarshal(body, &apiResp)
+	err = json.Unmarshal(body, &result)
 
 	if err != nil {
-		return CloudflareAPIResponse{}, err
+		return result, err
 	}
 
-	return apiResp, nil
+	return result, nil
 }
 
-func cloudflare_get_dns_record(config Config, record_name: str) {
-	
+func cloudflare_get_dns_record(config Config, record_name string) (*DDNRecordResult, error) {
+	url := fmt.Sprintf("https://api.cloudflare.com/client/v4/zones/%s/dns_records", config.CLOUDFLARE_ZONE_ID)
+	log.Println("Searching dns record", record_name)
+
+	req, err := http.NewRequest("GET", url, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", config.CLOUDFLARE_API_TOKEN))
+
+	client := &http.Client{}
+	res, err := client.Do(req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	cloudflare_response, err := parse_cloudflare_response[CloudflareListRecordAPIResponse](res)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP error %d: %s", res.StatusCode, cloudflare_response.Errors[0].Message)
+	}
+
+	log.Printf("Found %d dns records", len(cloudflare_response.Result))
+	for _, record := range cloudflare_response.Result {
+		if record.Name == record_name {
+			return &record, nil
+		}
+	}
+
+	return nil, nil
+
 }
+
 func cloudflare_create_dns_record(config Config, address string) (record_id string, err error) {
 	url := fmt.Sprintf("https://api.cloudflare.com/client/v4/zones/%s/dns_records", config.CLOUDFLARE_ZONE_ID)
-	log.Println(url)
 
-	req_body := CloudflareAPIRequest{
+	req_body := DDNRecordResult{
 		Name:    config.CLOUDFLARE_RECORD_NAME,
 		TTL:     3600,
 		Type:    get_dns_record_type(address),
@@ -143,7 +141,7 @@ func cloudflare_create_dns_record(config Config, address string) (record_id stri
 		return "", err
 	}
 
-	cloudflare_response, err := parse_cloudflare_response(res)
+	cloudflare_response, err := parse_cloudflare_response[CloudflareCreateRecordAPIResponse](res)
 	if err != nil {
 		return "", err
 	}
