@@ -1,5 +1,5 @@
 # Stage 1: Build
-FROM golang:1.21 AS builder
+FROM golang:1.24.5 AS builder
 
 WORKDIR /app
 
@@ -7,7 +7,7 @@ WORKDIR /app
 COPY . .
 
 # Build the Go binary
-RUN go build -o app
+RUN go build -o -v app
 
 # Stage 2: Minimal runtime image
 FROM alpine:latest
@@ -18,4 +18,4 @@ WORKDIR /root/
 COPY --from=builder /app/app .
 
 # Run the app
-CMD ["./app"]
+CMD ["app"]
