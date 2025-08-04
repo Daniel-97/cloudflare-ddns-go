@@ -15,11 +15,22 @@ import (
 
 func main() {
 
+	// Read config
 	config := load_config()
+	interval := time.Duration(config.REFRESH_INTERVAL) * time.Minute
+	for {
+		err := cloudflare_job(config)
+		if err != nil {
+			log.Println(err)
+		}
+		time.Sleep(interval)
+	}
+}
 
+func cloudflare_job(config *Config) error {
 	ip_address, err := get_current_ip()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	log.Println("Your ip address is", ip_address)
@@ -27,14 +38,14 @@ func main() {
 	record, err := cloudflare_get_dns_record(*config)
 
 	if err != nil {
-		log.Fatal(err)
+		return err
 	} else if record != nil {
 		// Record already present, overwrite it
 		log.Printf("DNS record %s found in zone %s", config.CLOUDFLARE_RECORD_NAME, config.CLOUDFLARE_ZONE_ID)
 		updated, err := cloudflare_update_dns_record(*config, record.ID, ip_address)
 
 		if err != nil {
-			log.Fatal(err)
+			return err
 		} else if updated {
 			log.Println("DNS record succesfully updated!")
 		} else {
@@ -44,11 +55,13 @@ func main() {
 		// Record do not exists, create a new one
 		record_id, err := cloudflare_create_dns_record(*config, ip_address)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
 		log.Printf("DNS record succesfully created with id: %s", record_id)
 	}
+
+	return nil
 }
 
 func get_dns_record_type(address string) string {
@@ -221,6 +234,7 @@ func load_config() *Config {
 		CLOUDFLARE_RECORD_NAME:  os.Getenv("CLOUDFLARE_RECORD_NAME"),
 		CLOUDFLARE_RECORD_TTL:   3600,
 		CLOUDFLARE_RECORD_PROXY: false,
+		REFRESH_INTERVAL:        5,
 	}
 
 	if config.CLOUDFLARE_API_TOKEN == "" {
@@ -236,11 +250,23 @@ func load_config() *Config {
 	}
 
 	if os.Getenv("CLOUDFLARE_RECORD_TTL") != "" {
-		config.CLOUDFLARE_RECORD_TTL, _ = strconv.Atoi(os.Getenv("CLOUDFLARE_RECORD_TTL"))
+		ttl, err := strconv.Atoi(os.Getenv("CLOUDFLARE_RECORD_TTL"))
+		if err != nil {
+			log.Fatal("Invalid CLOUDFLARE_RECORD_TTL value")
+		}
+		config.CLOUDFLARE_RECORD_TTL = ttl
 	}
 
 	if os.Getenv("CLOUDFLARE_RECORD_PROXY") != "" {
 		config.CLOUDFLARE_RECORD_PROXY, _ = strconv.ParseBool(os.Getenv("CLOUDFLARE_RECORD_PROXY"))
+	}
+
+	if os.Getenv("REFRESH_INTERVAL") != "" {
+		interval, err := strconv.Atoi(os.Getenv("REFRESH_INTERVAL"))
+		if err != nil {
+			log.Fatal("Invalid REFRESH_INTERVAL value")
+		}
+		config.REFRESH_INTERVAL = interval
 	}
 
 	return &config

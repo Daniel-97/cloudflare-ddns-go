@@ -24,6 +24,7 @@ Both ip version are supported:
 | `CLOUDFLARE_RECORD_NAME` | Record name (e.g. subdomain.mydomain.com)               | N/A (required)|
 | `CLOUDFLARE_RECORD_TTL`       | DNS record TTL (Time to live)         |3600 (1h)|
 | `CLOUDFLARE_RECORD_PROXY`       | DNS record proxy         |false|
+| `REFRESH_INTERVAL`       | DNS record update interval        | 5 (min) |
 
 ## Docker
 
@@ -41,6 +42,7 @@ docker run --rm \
   -e CLOUDFLARE_RECORD_NAME=subdomain.yourdomain.com \
   -e CLOUDFLARE_RECORD_TTL=3600 \
   -e CLOUDFLARE_RECORD_PROXY=false \
+  -e REFRESH_INTERVAL=5 \
   cloudflare-ddns-go
 ```
 

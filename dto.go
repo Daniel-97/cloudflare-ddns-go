@@ -6,6 +6,7 @@ type Config struct {
 	CLOUDFLARE_RECORD_NAME  string
 	CLOUDFLARE_RECORD_TTL   int
 	CLOUDFLARE_RECORD_PROXY bool
+	REFRESH_INTERVAL        int
 }
 
 type CloudflareAPIRequest struct {
