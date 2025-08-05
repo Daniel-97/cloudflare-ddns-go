@@ -118,7 +118,7 @@ func cloudflare_get_dns_record(config Config) (*DDNRecordResult, error) {
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP error %d: %s", res.StatusCode, cloudflare_response.Errors[0].Message)
+		return nil, fmt.Errorf("HTTP error %d (%s): %s", res.StatusCode, url, cloudflare_response.Errors[0].Message)
 	}
 
 	log.Printf("Found %d dns records", len(cloudflare_response.Result))
@@ -175,7 +175,7 @@ func cloudflare_update_dns_record(config Config, record_id string, address strin
 		return true, nil
 
 	} else {
-		return false, fmt.Errorf("HTTP error %d: %s", res.StatusCode, cloudflare_response.Errors[0].Message)
+		return false, fmt.Errorf("HTTP error %d (%s): %s", res.StatusCode, url, cloudflare_response.Errors[0].Message)
 	}
 
 }
@@ -222,7 +222,7 @@ func cloudflare_create_dns_record(config Config, address string) (record_id stri
 		return cloudflare_response.Result.ID, nil
 
 	} else {
-		return "", fmt.Errorf("HTTP error %d: %s", res.StatusCode, cloudflare_response.Errors[0].Message)
+		return "", fmt.Errorf("HTTP error %d (%s): %s", res.StatusCode, url, cloudflare_response.Errors[0].Message)
 	}
 
 }
