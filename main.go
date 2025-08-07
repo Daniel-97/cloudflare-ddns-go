@@ -19,8 +19,7 @@ func main() {
 	config := load_config()
 	interval := time.Duration(config.REFRESH_INTERVAL) * time.Minute
 	for {
-		err := cloudflare_job(config)
-		if err != nil {
+		if err := cloudflare_job(config); err != nil {
 			log.Println(err)
 		}
 		time.Sleep(interval)
@@ -35,9 +34,7 @@ func cloudflare_job(config *Config) error {
 
 	log.Println("Your ip address is", ip_address)
 
-	record, err := cloudflare_get_dns_record(*config)
-
-	if err != nil {
+	if record, err := cloudflare_get_dns_record(*config); err != nil {
 		return err
 	} else if record != nil {
 		// Record already present, overwrite it
@@ -46,7 +43,9 @@ func cloudflare_job(config *Config) error {
 
 		if err != nil {
 			return err
-		} else if updated {
+		}
+
+		if updated {
 			log.Println("DNS record succesfully updated!")
 		} else {
 			log.Println("DNS record not updated")
@@ -82,9 +81,7 @@ func parse_cloudflare_response[T any](response *http.Response) (json_body T, err
 	}
 	defer response.Body.Close()
 
-	err = json.Unmarshal(body, &result)
-
-	if err != nil {
+	if err := json.Unmarshal(body, &result); err != nil {
 		return result, err
 	}
 
@@ -101,8 +98,7 @@ func cloudflare_get_dns_record(config Config) (*DDNRecordResult, error) {
 		return nil, err
 	}
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", config.CLOUDFLARE_API_TOKEN))
+	set_cloudflare_header(req, config.CLOUDFLARE_API_TOKEN)
 
 	client := &http.Client{}
 	res, err := client.Do(req)
@@ -156,8 +152,7 @@ func cloudflare_update_dns_record(config Config, record_id string, address strin
 		return false, err
 	}
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", config.CLOUDFLARE_API_TOKEN))
+	set_cloudflare_header(req, config.CLOUDFLARE_API_TOKEN)
 
 	client := &http.Client{}
 	res, err := client.Do(req)
@@ -203,8 +198,7 @@ func cloudflare_create_dns_record(config Config, address string) (record_id stri
 		return "", err
 	}
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", config.CLOUDFLARE_API_TOKEN))
+	set_cloudflare_header(req, config.CLOUDFLARE_API_TOKEN)
 
 	client := &http.Client{}
 	res, err := client.Do(req)
@@ -225,6 +219,11 @@ func cloudflare_create_dns_record(config Config, address string) (record_id stri
 		return "", fmt.Errorf("HTTP error %d (%s): %s", res.StatusCode, url, cloudflare_response.Errors[0].Message)
 	}
 
+}
+
+func set_cloudflare_header(req *http.Request, api_token string) {
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", api_token))
 }
 
 func load_config() *Config {
