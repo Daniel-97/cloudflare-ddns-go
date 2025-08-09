@@ -16,41 +16,40 @@ type Client struct {
 	DNSZoneId string
 }
 
-type APIRequest struct {
-	Name    string `json:"name"`
-	TTL     int    `json:"ttl"`
-	Type    string `json:"type"`
-	Comment string `json:"comment"`
-	Content string `json:"content"`
-	Proxied bool   `json:"proxied"`
+// Used for the functions
+type DNSRecordOptions struct {
+	Name    string
+	Value   string
+	TTL     int
+	Proxied bool
 }
 
-type CreateRecordAPIResponse struct {
-	Errors   []APIMessage     `json:"errors"`
-	Messages []APIMessage     `json:"messages"`
+type createRecordAPIResponse struct {
+	Errors   []apiMessage     `json:"errors"`
+	Messages []apiMessage     `json:"messages"`
 	Success  bool             `json:"success"`
-	Result   DDNSRecordResult `json:"result"`
+	Result   ddnsRecordResult `json:"result"`
 }
 
-type ListRecordAPIResponse struct {
-	Errors   []APIMessage       `json:"errors"`
-	Messages []APIMessage       `json:"messages"`
+type listRecordAPIResponse struct {
+	Errors   []apiMessage       `json:"errors"`
+	Messages []apiMessage       `json:"messages"`
 	Success  bool               `json:"success"`
-	Result   []DDNSRecordResult `json:"result"`
+	Result   []ddnsRecordResult `json:"result"`
 }
 
-type APIMessage struct {
+type apiMessage struct {
 	Code             int    `json:"code"`
 	Message          string `json:"message"`
 	DocumentationURL string `json:"documentation_url"`
-	Source           Source `json:"source"`
+	Source           source `json:"source"`
 }
 
-type Source struct {
+type source struct {
 	Pointer string `json:"pointer"`
 }
 
-type DDNSRecordResult struct {
+type ddnsRecordResult struct {
 	Name     string   `json:"name"`
 	TTL      int      `json:"ttl"`
 	Type     string   `json:"type"`
@@ -76,7 +75,7 @@ func setHeader(req *http.Request, apiToken string) {
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiToken))
 }
 
-func (c Client) DnsRecord(recordName string) (*DDNSRecordResult, error) {
+func (c Client) DnsRecord(recordName string) (*ddnsRecordResult, error) {
 	url := fmt.Sprintf("https://api.cloudflare.com/client/v4/zones/%s/dns_records", c.DNSZoneId)
 	log.Println("Searching dns record", recordName)
 
@@ -95,7 +94,7 @@ func (c Client) DnsRecord(recordName string) (*DDNSRecordResult, error) {
 		return nil, err
 	}
 
-	cloudflare_response, err := ParseResponse[ListRecordAPIResponse](res)
+	cloudflare_response, err := ParseResponse[listRecordAPIResponse](res)
 
 	if err != nil {
 		return nil, err
@@ -116,19 +115,19 @@ func (c Client) DnsRecord(recordName string) (*DDNSRecordResult, error) {
 
 }
 
-func (c Client) UpdateDNSRecord(recordName string, recordTTL int, recordProxy bool, record_id string, address string) (bool, error) {
-	url := fmt.Sprintf("https://api.cloudflare.com/client/v4/zones/%s/dns_records/%s", c.DNSZoneId, record_id)
+func (c Client) UpdateDNSRecord(opts DNSRecordOptions, recordId string) (bool, error) {
+	url := fmt.Sprintf("https://api.cloudflare.com/client/v4/zones/%s/dns_records/%s", c.DNSZoneId, recordId)
 
-	req_body := DDNSRecordResult{
-		Name:    recordName,
-		TTL:     recordTTL,
-		Type:    dnsRecordType(address),
+	req_body := ddnsRecordResult{
+		Name:    opts.Name,
+		TTL:     opts.TTL,
+		Type:    dnsRecordType(opts.Value),
 		Comment: fmt.Sprintf("cloudflare-ddns-go (%s)", time.Now().Format(time.RFC3339)),
-		Content: address,
-		Proxied: recordProxy,
+		Content: opts.Value,
+		Proxied: opts.Proxied,
 	}
 
-	log.Printf("Updating Cloudflare dns %s record (%s) for address %s -> %s", req_body.Type, record_id, req_body.Content, req_body.Name)
+	log.Printf("Updating Cloudflare dns %s record (%s) for address %s -> %s", req_body.Type, recordId, req_body.Content, req_body.Name)
 
 	json_bytes, err := json.Marshal(req_body)
 	if err != nil {
@@ -149,7 +148,7 @@ func (c Client) UpdateDNSRecord(recordName string, recordTTL int, recordProxy bo
 		return false, err
 	}
 
-	cloudflare_response, err := ParseResponse[CreateRecordAPIResponse](res)
+	cloudflare_response, err := ParseResponse[createRecordAPIResponse](res)
 	if err != nil {
 		return false, err
 	}
@@ -163,16 +162,16 @@ func (c Client) UpdateDNSRecord(recordName string, recordTTL int, recordProxy bo
 
 }
 
-func (c Client) CreateDNSRecord(recordName string, recordTTL int, recordProxy bool, address string) (record_id string, err error) {
+func (c Client) CreateDNSRecord(opts DNSRecordOptions) (record_id string, err error) {
 	url := fmt.Sprintf("https://api.cloudflare.com/client/v4/zones/%s/dns_records", c.DNSZoneId)
 
-	req_body := DDNSRecordResult{
-		Name:    recordName,
-		TTL:     recordTTL,
-		Type:    dnsRecordType(address),
+	req_body := ddnsRecordResult{
+		Name:    opts.Name,
+		TTL:     opts.TTL,
+		Type:    dnsRecordType(opts.Value),
 		Comment: fmt.Sprintf("cloudflare-ddns-go (%s)", time.Now().Format(time.RFC3339)),
-		Content: address,
-		Proxied: recordProxy,
+		Content: opts.Value,
+		Proxied: opts.Proxied,
 	}
 	log.Printf("Creating new Cloudflare dns %s record for address %s -> %s", req_body.Type, req_body.Content, req_body.Name)
 
@@ -195,7 +194,7 @@ func (c Client) CreateDNSRecord(recordName string, recordTTL int, recordProxy bo
 		return "", err
 	}
 
-	cloudflare_response, err := ParseResponse[CreateRecordAPIResponse](res)
+	cloudflare_response, err := ParseResponse[createRecordAPIResponse](res)
 	if err != nil {
 		return "", err
 	}
