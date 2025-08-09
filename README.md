@@ -1,5 +1,5 @@
 # cloudflare-ddns-go
-A zero dependency go client used to update DNS entries on Cloudflare accounts based on current ip address.
+A **zero dependency** go client used to update Cloudflare DNS entries based on current ip address.
 
 ## Prerequisites
 
