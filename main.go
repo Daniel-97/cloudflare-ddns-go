@@ -11,6 +11,15 @@ import (
 	"cloudflare-ddns-go/cloudflare"
 )
 
+type Config struct {
+	CLOUDFLARE_API_TOKEN    string
+	CLOUDFLARE_ZONE_ID      string
+	CLOUDFLARE_RECORD_NAME  string
+	CLOUDFLARE_RECORD_TTL   int
+	CLOUDFLARE_RECORD_PROXY bool
+	REFRESH_INTERVAL        int
+}
+
 func main() {
 
 	// Read config
