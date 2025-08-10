@@ -232,3 +232,43 @@ func dnsRecordType(address string) string {
 		return "A"
 	}
 }
+
+func CurrentIP() (ip string, err error) {
+
+	log.Println("Looking for ip address...")
+	url := "https://ifconfig.me/ip"
+	client := &http.Client{}
+
+	req, err := http.NewRequest("GET", url, nil)
+
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("Content-Type", "plain/text")
+
+	res, err := client.Do(req)
+
+	if err != nil {
+		return "", err
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode == http.StatusOK {
+
+		body, err := io.ReadAll(res.Body)
+
+		if err != nil {
+			return "", err
+		}
+
+		bodyString := string(body)
+
+		return bodyString, nil
+
+	} else {
+		return "", fmt.Errorf("HTTP error while getting IP address from %s: %w", url, err)
+	}
+
+}
