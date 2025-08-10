@@ -15,7 +15,7 @@ func main() {
 
 	for {
 		if err := job(cloudflareClient, config.CLOUDFLARE_RECORD_NAME, config.CLOUDFLARE_RECORD_TTL); err != nil {
-			log.Println(err)
+			log.Printf("Unexpected error in job: %s", err)
 		}
 		time.Sleep(time.Duration(config.REFRESH_INTERVAL) * time.Minute)
 	}
