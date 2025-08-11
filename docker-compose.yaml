@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  cloudflare-ddns:
+    image: cloudflare-ddns-go
+    container_name: cloudflare-ddns
+    restart: unless-stopped
+    environment:
+      CLOUDFLARE_API_TOKEN: your_cloudflare_api_key
+      CLOUDFLARE_ZONE_ID: your-cloudflare_zone_id
+      CLOUDFLARE_RECORD_NAME: subdomain.yourdomain.com
+      CLOUDFLARE_RECORD_TTL: 3600
+      CLOUDFLARE_RECORD_PROXY: "false"
+      REFRESH_INTERVAL: 5
